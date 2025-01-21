@@ -1,11 +1,11 @@
 import os
-from openai import OpenAI
 import tomllib
 from dotenv import load_dotenv
-import openai
 from call_model import call_llm_with_full_text
 from print_format import print_formatted_response
-
+from simularity import calculate_cosine_similarity
+from db import get_db
+from simularity import find_best_match_keyword_search
 
 QUERY = "define a rag store"
 
@@ -35,11 +35,15 @@ if __name__ == '__main__':
     load_dotenv()
     config =  read_config_file("config.toml")
 
+    db: list[str] = get_db()
+
+    best_keyword_score, best_matching_record = find_best_match_keyword_search(QUERY, db)
+
+    score = calculate_cosine_similarity(QUERY, best_matching_record)
+
     set_api_for_model_provider(config["model"])
     client = get_client(config["model"])
 
     llm_response = call_llm_with_full_text(QUERY, client, config['model'])
     print_formatted_response(llm_response)
-
-
     print(2)
