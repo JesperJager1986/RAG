@@ -3,9 +3,9 @@ import tomllib
 from dotenv import load_dotenv
 from call_model import call_llm_with_full_text
 from print_format import print_formatted_response
-from simularity import calculate_cosine_similarity
+from simularity import calculate_cosine_similarity, find_best_match_keyword_search, calculate_enhanced_similarity
 from db import get_db
-from simularity import find_best_match_keyword_search
+
 
 QUERY = "define a rag store"
 
@@ -40,7 +40,7 @@ if __name__ == '__main__':
     best_keyword_score, best_matching_record = find_best_match_keyword_search(QUERY, db)
 
     score = calculate_cosine_similarity(QUERY, best_matching_record)
-
+    score_enhanced = calculate_enhanced_similarity(QUERY, best_matching_record)
     set_api_for_model_provider(config["model"])
     client = get_client(config["model"])
 

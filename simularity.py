@@ -9,28 +9,17 @@ import numpy as np
 
 nltk.download('wordnet')
 
-def find_best_match_keyword_search(query, db_records):
-    best_score = 0
-    best_record = None
+def find_best_match_keyword_search(query: str, db_records: list[str]):
 
-    # Split the query into individual keywords
-    query_keywords = set(query.lower().split())
+    query_keywords = set(query.lower().split())  # Convert query to a set of unique keywords
 
-    # Iterate through each record in db_records
-    for record in db_records:
-        # Split the record into keywords
-        record_keywords = set(record.lower().split())
+    record_keywords = list(map(lambda x: set(x.lower().split()), db_records))
 
-        # Calculate the number of common keywords
-        common_keywords = query_keywords.intersection(record_keywords)
-        current_score = len(common_keywords)
+    common_keywords = list(map(lambda x: x.intersection(query_keywords), record_keywords))
 
-        # Update the best score and record if the current score is higher
-        if current_score > best_score:
-            best_score = current_score
-            best_record = record
+    scores = np.array(list(map(lambda x: len(x), common_keywords)))
 
-    return best_score, best_record
+    return scores[np.argmax(scores)], db_records[np.argmax(scores)]
 
 def calculate_cosine_similarity(text1, text2):
     vectorizer = TfidfVectorizer(
@@ -46,13 +35,6 @@ def calculate_cosine_similarity(text1, text2):
     return similarity[0][0]
 
 
-
-
-# Load spaCy model
-# python -m spacy download en_core_web_lg
-# https://louwersj.medium.com/solved-cant-find-model-en-core-web-sm-c30a9dee179
-#nlp = spacy.load("en_core_web_sm")
-
 def get_synonyms(word):
     synonyms = set()
     for syn in wordnet.synsets(word):
@@ -61,12 +43,11 @@ def get_synonyms(word):
     return synonyms
 
 def preprocess_text(text):
+    # python - m spacy download en_core_web_sm
+    nlp = spacy.load("en_core_web_sm")
     doc = nlp(text.lower())
-    lemmatized_words = []
-    for token in doc:
-        if token.is_stop or token.is_punct:
-            continue
-        lemmatized_words.append(token.lemma_)
+    lemmatized_words = [token.lemma_ for token in doc if not (token.is_stop or token.is_punct)]
+
     return lemmatized_words
 
 def expand_with_synonyms(words):
@@ -75,7 +56,7 @@ def expand_with_synonyms(words):
         expanded_words.extend(get_synonyms(word))
     return expanded_words
 
-def calculate_enhanced_similarity(text1, text2):
+def calculate_enhanced_similarity(text1: str, text2: str):
     # Preprocess and tokenize texts
     words1 = preprocess_text(text1)
     words2 = preprocess_text(text2)
