@@ -61,26 +61,20 @@ def calculate_enhanced_similarity(text1: str, text2: str):
     words1 = preprocess_text(text1)
     words2 = preprocess_text(text2)
 
-    # Expand with synonyms
     words1_expanded = expand_with_synonyms(words1)
     words2_expanded = expand_with_synonyms(words2)
 
-    # Count word frequencies
     freq1 = Counter(words1_expanded)
     freq2 = Counter(words2_expanded)
 
-    # Create a set of all unique words
     unique_words = set(freq1.keys()).union(set(freq2.keys()))
 
-    # Create frequency vectors
     vector1 = [freq1[word] for word in unique_words]
     vector2 = [freq2[word] for word in unique_words]
 
-    # Convert lists to numpy arrays
     vector1 = np.array(vector1)
     vector2 = np.array(vector2)
 
-    # Calculate cosine similarity
     cosine_similarity = np.dot(vector1, vector2) / (np.linalg.norm(vector1) * np.linalg.norm(vector2))
 
     return cosine_similarity
