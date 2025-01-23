@@ -1,3 +1,6 @@
+import faiss
+import numpy as np
+import pandas as pd
 from bs4 import BeautifulSoup
 from deeplake.core.vectorstore import DeepLakeVectorStore
 from llama_index.core import StorageContext, VectorStoreIndex, SimpleDirectoryReader, ServiceContext
@@ -9,9 +12,9 @@ import requests
 import os
 import spacy
 from search.webpages import get_urls
-
+from time import sleep
 from sentence_transformers import SentenceTransformer
-
+from tqdm import tqdm
 
 class WebScrapingPipeline:
     def __init__(self, url: str):
@@ -110,13 +113,33 @@ class WebScrapingPipeline:
 if __name__ == "__main__":
     model = SentenceTransformer('all-MiniLM-L6-v2')
     text = "This is an example sentence to be embedded."
-
-    # Convert the text to an embedding
     embedding = model.encode(text)
+
     for url in get_urls():
         pipeline = WebScrapingPipeline(url)
         pipeline.fetch().format().preprocess_text().save("./data/")
+
     documents = SimpleDirectoryReader("./data/").load_data()
+    df = pd.DataFrame([], columns=["sentence", "embedding"])
+    for document in documents:
+        sentences = document.text.split(".")
+
+
+        for sentence in tqdm(sentences):
+            sentence = sentence.replace("\n", "")
+            embedding = model.encode(sentence)
+            embedding_s = embedding.size
+            new_row = pd.DataFrame({'sentence': [sentence], 'embedding': [embedding]})
+
+            # Using pd.concat() to append
+            df = pd.concat([df, new_row], ignore_index=True)
+            sleep(1)
+            print(2)
+        index = faiss.IndexFlatL2(embedding_s)
+        embedding = df["embedding"].to_numpy()
+    index.add(
+
+
     index = VectorStoreIndex.from_documents(documents)
     # Set up local paths
     base_path = "./dataset_db/"

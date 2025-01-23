@@ -11,6 +11,8 @@ llama-index-vector-stores-deeplake==0.1.6
 deeplake==3.9.18
 llama-index==0.10.64
 sentence-transformers==3.0.1
+tqdm
 
 selenium
 webdriver-manager
+faiss-cpu
