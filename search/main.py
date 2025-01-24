@@ -1,28 +1,29 @@
 import pandas as pd
-from llama_index.core import SimpleDirectoryReader
 from sentence_transformers import SentenceTransformer
 
+from search.model import Model
 from search.web_scraping_pipeline import WebScrapingPipeline
 from search.webpages import get_urls
 
 if __name__ == "__main__":
 
+    model_name = 'all-MiniLM-L6-v2'
+    text = "This is an example sentence to be embedded."
+
+    Model = Model(model_name=model_name)
+
+
     for url in get_urls():
-        pipeline = WebScrapingPipeline(url, "./data_cleaned")
-        pipeline.fetch().format().preprocess_text().save()
+        pipeline = WebScrapingPipeline(url)
+        (pipeline.fetch().
+         format().
+         save(folder="format").
+         preprocess_text().
+         save(folder="preprocessed").
+         calc_embedding(Model).
+         save(folder="embedded"))
 
-    for document in documents:
-        for sentence in tqdm(sentences):
-            sentence = sentence.replace("\n", "")
 
-            embedding = model.encode(sentence)
-            embedding_s = embedding.size
-            new_row = pd.DataFrame({'sentence': [sentence], 'embedding': [embedding]})
-
-            # Using pd.concat() to append
-            df = pd.concat([df, new_row], ignore_index=True)
-            sleep(1)
-            print(2)
         index = faiss.IndexFlatL2(embedding_s)
         embedding = df["embedding"].to_numpy()
 

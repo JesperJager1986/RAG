@@ -11,22 +11,25 @@ import spacy
 
 from pathlib import Path
 
+from search.model import Model
+
 
 class WebScrapingPipeline:
-    def __init__(self, url: str |  Path, storing_directory: str | Path):
+    def __init__(self, url: str |  Path):
         self.url = Path(url)
-        self._storing_directory = Path(storing_directory)
         self._raw_content = None
         self._cleaned_content = None
+        self._embedding = None
+        self._current_document = None
 
     def get_file_name(self):
         return self.url.name
 
-    def create_file_name_from_path(self, add_name_to_name: str = None, extension =".txt") -> Path:
+    def create_file_name_from_path(self, folder , add_name_to_name: str = None, extension =".txt") -> Path:
         if add_name_to_name is not None:
             new_stem = f"{self.url.stem}_{add_name_to_name}"
             self.url = self.url.with_name(new_stem + self.url.suffix)
-        path = self.storing_directory / self.url.stem
+        path = folder / self.url.stem
 
         path = path.with_suffix(extension)
         return path
@@ -74,6 +77,7 @@ class WebScrapingPipeline:
             ) as driver:
                 driver.get(str(self.url))
                 self._raw_content = driver.page_source
+                self._current_document = self._raw_content
         except Exception as e:
             print(f"Selenium failed: {e}")
             self._raw_content = None
@@ -90,7 +94,7 @@ class WebScrapingPipeline:
                 soup.find('div', {'id': 'content'})
             )
             self._cleaned_content = content.get_text(strip=True) if content else None
-
+            self._current_document = self._cleaned_content
         return self
 
     def preprocess_text(self):
@@ -114,23 +118,39 @@ class WebScrapingPipeline:
     def storing_directory(self):
         return self._storing_directory
 
-    def save(self, file_path: str):
+    @property
+    def embedding(self):
+        return self._embedding
+
+    @property
+    def current_document(self):
+        if isinstance(self._current_document, list):
+            return self._cleaned_content
+        else:
+            return [self._current_document]
+
+    def save(self, folder: str, hashed = False, extension = ".txt"):
         """Save cleaned content to a file."""
-        if self._cleaned_content:
-            os.makedirs(file_path, exist_ok=True)
-            file_path2 = self.create_file_name_from_path()
-            file_path3 = self.create_file_name_from_path("hashed")
+        if self.current_document:
+            os.makedirs(folder, exist_ok=True)
+            folder = Path(folder)
+            file_path2 = self.create_file_name_from_path(folder = folder, extension=extension)
             with open(file_path2, 'w', encoding='utf-8') as file:
-                for line in self.cleaned_content:
+                for line in self.current_document:
+                    if hashed:
+                        line = hashlib.sha256(line.encode('utf-8')).hexdigest()
+
                     file.write(line + "\n")
-
-            with open(file_path3, 'w', encoding='utf-8') as file:
-                for line in self.cleaned_content:
-                    hashed_line = hashlib.sha256(line.encode('utf-8')).hexdigest()
-                    file.write(hashed_line + "\n")
-
-            print(f"Content saved to {file_path}")
+            print(f"Content saved to {folder}")
         else:
             print("No content to save.")
 
         return self
+
+
+
+    def calc_embedding(self, model: Model):
+        self._embedding = [model.calc_embeddings(line) for line in self.cleaned_content]
+        self._current_document = self._embedding
+        return self
+
