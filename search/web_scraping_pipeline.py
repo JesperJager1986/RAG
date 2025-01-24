@@ -80,7 +80,8 @@ class WebScrapingPipeline:
         # python - m spacy download en_core_web_sm
         nlp = spacy.load("en_core_web_sm")
         doc = nlp(self._cleaned_content.lower())
-        self._cleaned_content = [sent.text for sent in doc.sents]
+        self._cleaned_content: list[str] = [sent.text for sent in doc.sents]
+        self._cleaned_content = list(map(lambda x: x.replace(".", "") ,self._cleaned_content))
         return self
 
     @property
@@ -115,11 +116,12 @@ if __name__ == "__main__":
     text = "This is an example sentence to be embedded."
     embedding = model.encode(text)
 
+    store_cleaned_data = "./cleaned_data/"
     for url in get_urls():
         pipeline = WebScrapingPipeline(url)
-        pipeline.fetch().format().preprocess_text().save("./data/")
+        pipeline.fetch().format().preprocess_text().save(store_cleaned_data)
 
-    documents = SimpleDirectoryReader("./data/").load_data()
+    documents = SimpleDirectoryReader(store_cleaned_data).load_data()
     df = pd.DataFrame([], columns=["sentence", "embedding"])
     for document in documents:
         sentences = document.text.split(".")
@@ -127,6 +129,7 @@ if __name__ == "__main__":
 
         for sentence in tqdm(sentences):
             sentence = sentence.replace("\n", "")
+
             embedding = model.encode(sentence)
             embedding_s = embedding.size
             new_row = pd.DataFrame({'sentence': [sentence], 'embedding': [embedding]})
@@ -137,7 +140,7 @@ if __name__ == "__main__":
             print(2)
         index = faiss.IndexFlatL2(embedding_s)
         embedding = df["embedding"].to_numpy()
-    index.add(
+
 
 
     index = VectorStoreIndex.from_documents(documents)

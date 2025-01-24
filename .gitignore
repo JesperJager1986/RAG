@@ -172,3 +172,4 @@ cython_debug/
 .idea
 data
 dataset_db
+cleaned_data
