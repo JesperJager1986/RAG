@@ -1,3 +1,5 @@
+import hashlib
+
 import faiss
 import numpy as np
 import pandas as pd
@@ -15,55 +17,80 @@ from search.webpages import get_urls
 from time import sleep
 from sentence_transformers import SentenceTransformer
 from tqdm import tqdm
+from pathlib import Path
+
 
 class WebScrapingPipeline:
-    def __init__(self, url: str):
-        self.url = url
+    def __init__(self, url: str |  Path, storing_directory: str | Path):
+        self.url = Path(url)
+        self._storing_directory = Path(storing_directory)
         self._raw_content = None
         self._cleaned_content = None
 
-    def get_file_name(self, output_dir) -> str:
-        article_name = self.url.split('/')[-1].replace('.html', '')  # Handle .html extension
-        filename = os.path.join(output_dir, f"{article_name}.txt")
-        return filename
+    def get_file_name(self):
+        return self.url.name
+
+    def create_file_name_from_path(self, add_name_to_name: str = None, extension =".txt") -> Path:
+        if add_name_to_name is not None:
+            new_stem = f"{self.url.stem}_{add_name_to_name}"
+            self.url = self.url.with_name(new_stem + self.url.suffix)
+        path = self.storing_directory / self.url.stem
+
+        path = path.with_suffix(extension)
+        return path
 
     def fetch(self):
-        """Fetch raw HTML content."""
+        """Fetch raw HTML content, falling back to Selenium if requests is unsuccessful."""
+
         try:
-            response = requests.get(self.url, timeout=10)
+            response = requests.get(str(self.url), timeout=10)
             response.raise_for_status()
             self._raw_content = response.content
         except requests.exceptions.RequestException as e:
             print(f"Requests failed: {e}")
-            self._raw_content = None
 
-        # Fallback to Selenium if requests fails
         if self._raw_content is None:
-            try:
-                print("Falling back to Selenium for JavaScript rendering...")
-                chrome_options = Options()
-                chrome_options.add_argument("--headless")
-                chrome_options.add_argument("--disable-gpu")
-                chrome_options.add_argument("--no-sandbox")
-                chrome_options.add_argument("--disable-dev-shm-usage")
+            self._fetch_with_selenium()
 
-                driver = webdriver.Chrome(
-                    service=Service(ChromeDriverManager().install()), options=chrome_options
-                )
-                driver.get(self.url)
+        if self._raw_content is None:
+            raise RuntimeError("No data is loaded")
+
+        return self
+
+    def _fetch_with_requests(self):
+        """Try to fetch content using requests."""
+        try:
+            response = requests.get(str(self.url), timeout=10)
+            response.raise_for_status()
+            self._raw_content = response.content
+        except requests.exceptions.RequestException as e:
+            print(f"Requests failed: {e}")
+        return self
+
+    def _fetch_with_selenium(self):
+        """Fetch content using Selenium for JavaScript-rendered pages."""
+        print("Falling back to Selenium for JavaScript rendering...")
+        options = Options()
+        options.add_argument("--headless")
+        options.add_argument("--disable-gpu")
+        options.add_argument("--no-sandbox")
+        options.add_argument("--disable-dev-shm-usage")
+
+        try:
+            with webdriver.Chrome(
+                service=Service(ChromeDriverManager().install()), options=options
+            ) as driver:
+                driver.get(str(self.url))
                 self._raw_content = driver.page_source
-                driver.quit()
-            except Exception as e:
-                print(f"Selenium failed: {e}")
-                self._raw_content = None
-
-        return self  # Enable method chaining
+        except Exception as e:
+            print(f"Selenium failed: {e}")
+            self._raw_content = None
+        return self
 
     def format(self):
         """Extract meaningful content from raw HTML."""
-        if not self._raw_content:
+        if self._raw_content is None:
             print("No content to clean.")
-            self._cleaned_content = None
         else:
             soup = BeautifulSoup(self._raw_content, 'html.parser')
             content = (
@@ -71,17 +98,14 @@ class WebScrapingPipeline:
                 soup.find('div', {'id': 'content'})
             )
             self._cleaned_content = content.get_text(strip=True) if content else None
-            if not self._cleaned_content:
-                print("No meaningful content found.")
 
-        return self  # Enable method chaining
+        return self
 
     def preprocess_text(self):
         # python - m spacy download en_core_web_sm
         nlp = spacy.load("en_core_web_sm")
         doc = nlp(self._cleaned_content.lower())
         self._cleaned_content: list[str] = [sent.text for sent in doc.sents]
-        self._cleaned_content = list(map(lambda x: x.replace(".", "") ,self._cleaned_content))
         return self
 
     @property
@@ -94,20 +118,30 @@ class WebScrapingPipeline:
         """Access cleaned content."""
         return self._cleaned_content
 
+    @property
+    def storing_directory(self):
+        return self._storing_directory
+
     def save(self, file_path: str):
         """Save cleaned content to a file."""
-        if not self._cleaned_content:
+        if self._cleaned_content:
+            os.makedirs(file_path, exist_ok=True)
+            file_path2 = self.create_file_name_from_path()
+            file_path3 = self.create_file_name_from_path("hashed")
+            with open(file_path2, 'w', encoding='utf-8') as file:
+                for line in self.cleaned_content:
+                    file.write(line + "\n")
+
+            with open(file_path3, 'w', encoding='utf-8') as file:
+                for line in self.cleaned_content:
+                    hashed_line = hashlib.sha256(line.encode('utf-8')).hexdigest()
+                    file.write(hashed_line + "\n")
+
+            print(f"Content saved to {file_path}")
+        else:
             print("No content to save.")
-            return self  # Allow chaining even if no content is saved
 
-        os.makedirs(file_path, exist_ok=True)
-        file_path2 = self.get_file_name(file_path)
-        with open(file_path2, 'w', encoding='utf-8') as file:
-            for line in self.cleaned_content:
-                file.write(line + "\n")
-
-        print(f"Content saved to {file_path}")
-        return self  # Enable method chaining
+        return self
 
 
 
@@ -118,15 +152,13 @@ if __name__ == "__main__":
 
     store_cleaned_data = "./cleaned_data/"
     for url in get_urls():
-        pipeline = WebScrapingPipeline(url)
+        pipeline = WebScrapingPipeline(url, store_cleaned_data)
         pipeline.fetch().format().preprocess_text().save(store_cleaned_data)
 
     documents = SimpleDirectoryReader(store_cleaned_data).load_data()
     df = pd.DataFrame([], columns=["sentence", "embedding"])
     for document in documents:
         sentences = document.text.split(".")
-
-
         for sentence in tqdm(sentences):
             sentence = sentence.replace("\n", "")
 
@@ -152,9 +184,9 @@ if __name__ == "__main__":
     dataset_path = os.path.join(base_path, "dataset/")
 
     # Initialize the vector store locally
-    vector_store = DeepLakeVectorStore(path=dataset_path, overwrite=True)
+    # vector_store = DeepLakeVectorStore(path=dataset_path, overwrite=True)
     storage_context = StorageContext.from_defaults(vector_store=vector_store)
 
     # Create an index over the documents
-    index = VectorStoreIndex.from_documents(documents, storage_context=storage_context)
+    # index = VectorStoreIndex.from_documents(documents, storage_context=storage_context)
     print(2)
