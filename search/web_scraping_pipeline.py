@@ -1,5 +1,6 @@
 import hashlib
 
+import numpy as np
 from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
@@ -50,6 +51,8 @@ class WebScrapingPipeline:
         if self._raw_content is None:
             raise RuntimeError("No data is loaded")
 
+        self.current_document = self._raw_content
+
         return self
 
     def _fetch_with_requests(self):
@@ -77,7 +80,7 @@ class WebScrapingPipeline:
             ) as driver:
                 driver.get(str(self.url))
                 self._raw_content = driver.page_source
-                self._current_document = self._raw_content
+                self.current_document = self._raw_content
         except Exception as e:
             print(f"Selenium failed: {e}")
             self._raw_content = None
@@ -94,7 +97,7 @@ class WebScrapingPipeline:
                 soup.find('div', {'id': 'content'})
             )
             self._cleaned_content = content.get_text(strip=True) if content else None
-            self._current_document = self._cleaned_content
+            self.current_document = self._cleaned_content
         return self
 
     def preprocess_text(self):
@@ -102,6 +105,7 @@ class WebScrapingPipeline:
         nlp = spacy.load("en_core_web_sm")
         doc = nlp(self._cleaned_content.lower())
         self._cleaned_content: list[str] = [sent.text for sent in doc.sents]
+        self.current_document = self._cleaned_content
         return self
 
     @property
@@ -115,42 +119,45 @@ class WebScrapingPipeline:
         return self._cleaned_content
 
     @property
-    def storing_directory(self):
-        return self._storing_directory
-
-    @property
     def embedding(self):
         return self._embedding
 
     @property
     def current_document(self):
         if isinstance(self._current_document, list):
-            return self._cleaned_content
+            return self._current_document
+        elif isinstance(self._current_document, np.ndarray):
+            return self._current_document
         else:
             return [self._current_document]
 
-    def save(self, folder: str, hashed = False, extension = ".txt"):
+    @current_document.setter
+    def current_document(self, value):
+        self._current_document = value
+
+    def save(self, folder: str, hashed: bool = False, extension: str  = ".txt"):
         """Save cleaned content to a file."""
-        if self.current_document:
+        if self.current_document is not None:
             os.makedirs(folder, exist_ok=True)
             folder = Path(folder)
             file_path2 = self.create_file_name_from_path(folder = folder, extension=extension)
-            with open(file_path2, 'w', encoding='utf-8') as file:
-                for line in self.current_document:
-                    if hashed:
-                        line = hashlib.sha256(line.encode('utf-8')).hexdigest()
+            if isinstance(self.current_document, np.ndarray):
+                np.savetxt(file_path2, self.current_document, fmt="%.8f")
+            else:
+                with open(file_path2, 'w', encoding='utf-8') as file:
+                    for line in self.current_document:
+                        if hashed:
+                            line = hashlib.sha256(line.encode('utf-8')).hexdigest()
+                        file.write(line + "\n")
 
-                    file.write(line + "\n")
             print(f"Content saved to {folder}")
         else:
             print("No content to save.")
 
         return self
 
-
-
     def calc_embedding(self, model: Model):
-        self._embedding = [model.calc_embeddings(line) for line in self.cleaned_content]
-        self._current_document = self._embedding
+        self._embedding = np.array([model.calc_embeddings(line) for line in self.cleaned_content])
+        self.current_document = self._embedding
         return self
 

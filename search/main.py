@@ -24,10 +24,8 @@ if __name__ == "__main__":
          save(folder="embedded"))
 
 
-        index = faiss.IndexFlatL2(embedding_s)
-        embedding = df["embedding"].to_numpy()
-
-
+    index = faiss.IndexFlatL2(embedding_s)
+    embedding = df["embedding"].to_numpy()
 
     index = VectorStoreIndex.from_documents(documents)
     # Set up local paths
