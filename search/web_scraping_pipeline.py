@@ -1,11 +1,6 @@
 import hashlib
 
-import faiss
-import numpy as np
-import pandas as pd
 from bs4 import BeautifulSoup
-from deeplake.core.vectorstore import DeepLakeVectorStore
-from llama_index.core import StorageContext, VectorStoreIndex, SimpleDirectoryReader, ServiceContext
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
@@ -13,10 +8,7 @@ from webdriver_manager.chrome import ChromeDriverManager
 import requests
 import os
 import spacy
-from search.webpages import get_urls
-from time import sleep
-from sentence_transformers import SentenceTransformer
-from tqdm import tqdm
+
 from pathlib import Path
 
 
@@ -142,51 +134,3 @@ class WebScrapingPipeline:
             print("No content to save.")
 
         return self
-
-
-
-if __name__ == "__main__":
-    model = SentenceTransformer('all-MiniLM-L6-v2')
-    text = "This is an example sentence to be embedded."
-    embedding = model.encode(text)
-
-    store_cleaned_data = "./cleaned_data/"
-    for url in get_urls():
-        pipeline = WebScrapingPipeline(url, store_cleaned_data)
-        pipeline.fetch().format().preprocess_text().save(store_cleaned_data)
-
-    documents = SimpleDirectoryReader(store_cleaned_data).load_data()
-    df = pd.DataFrame([], columns=["sentence", "embedding"])
-    for document in documents:
-        sentences = document.text.split(".")
-        for sentence in tqdm(sentences):
-            sentence = sentence.replace("\n", "")
-
-            embedding = model.encode(sentence)
-            embedding_s = embedding.size
-            new_row = pd.DataFrame({'sentence': [sentence], 'embedding': [embedding]})
-
-            # Using pd.concat() to append
-            df = pd.concat([df, new_row], ignore_index=True)
-            sleep(1)
-            print(2)
-        index = faiss.IndexFlatL2(embedding_s)
-        embedding = df["embedding"].to_numpy()
-
-
-
-    index = VectorStoreIndex.from_documents(documents)
-    # Set up local paths
-    base_path = "./dataset_db/"
-    os.makedirs(base_path, exist_ok=True)  # Create the directory if it doesn't exist
-
-    vector_store_path = os.path.join(base_path, "vector_store")
-    dataset_path = os.path.join(base_path, "dataset/")
-
-    # Initialize the vector store locally
-    # vector_store = DeepLakeVectorStore(path=dataset_path, overwrite=True)
-    storage_context = StorageContext.from_defaults(vector_store=vector_store)
-
-    # Create an index over the documents
-    # index = VectorStoreIndex.from_documents(documents, storage_context=storage_context)
-    print(2)
