@@ -1,5 +1,3 @@
-from torch.nn.functional import embedding
-
 from search.model import Model
 from search.web_scraping_pipeline import WebScrapingPipeline
 from search.webpages import get_urls
@@ -22,10 +20,9 @@ if __name__ == "__main__":
          add_embedding_to_vector())
 
     model = Model(model_name=model_name)
-    query_embedding = model.calc_embeddings(text).reshape(1, -1)
+    query_embedding = model(text).reshape(1, -1)
 
-    distances, indices = pipeline.index.search(query_embedding, 5)
+    distances, indices = pipeline.index.search(query_embedding, 1)
     for idx in indices:
         print(pipeline.text_library.iloc[idx])
-    print(2)
 

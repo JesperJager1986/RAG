@@ -187,9 +187,8 @@ class WebScrapingPipeline:
         self.text_library = pd.concat([self.text_library, pd.DataFrame(self.cleaned_content)], axis=0, ignore_index=True)
         return self
 
-
     def calc_embedding(self, model: Model):
-        self.embedding = np.array([model.calc_embeddings(line) for line in self.cleaned_content])
+        self.embedding = np.array([model(line) for line in self.cleaned_content])
         self.current_document = self.embedding
         return self
 
