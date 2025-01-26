@@ -7,7 +7,7 @@ from search.webpages import get_urls
 if __name__ == "__main__":
 
     model_name = 'all-MiniLM-L6-v2'
-    text = "This is an example sentence to be embedded."
+    text = "how cars are there in each image"
 
     pipeline = WebScrapingPipeline()
     for url in get_urls():
@@ -16,14 +16,16 @@ if __name__ == "__main__":
          save(folder="format").
          preprocess_text().
          save(folder="preprocessed").
+         store_in_pd_library().
          calc_embedding(model=Model(model_name=model_name)).
          save(folder="embedded").
          add_embedding_to_vector())
 
     model = Model(model_name=model_name)
-    query_embedding = model.calc_embeddings(text)
+    query_embedding = model.calc_embeddings(text).reshape(1, -1)
 
     distances, indices = pipeline.index.search(query_embedding, 5)
-
+    for idx in indices:
+        print(pipeline.text_library.iloc[idx])
     print(2)
 

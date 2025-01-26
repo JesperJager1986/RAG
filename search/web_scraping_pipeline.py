@@ -1,6 +1,7 @@
 import hashlib
 
 import numpy as np
+import pandas as pd
 from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
@@ -22,6 +23,7 @@ class WebScrapingPipeline:
         self._embedding = None
         self._current_document = None
         self._index = None
+        self._text_library = pd.DataFrame([])
 
     def get_file_name(self):
         return self.url.name
@@ -96,16 +98,16 @@ class WebScrapingPipeline:
                 soup.find('div', {'class': 'mw-parser-output'}) or
                 soup.find('div', {'id': 'content'})
             )
-            self._cleaned_content = content.get_text(strip=True) if content else None
-            self.current_document = self._cleaned_content
+            self.cleaned_content = content.get_text(strip=True) if content else None
+            self.current_document = self.cleaned_content
         return self
 
     def preprocess_text(self):
         # python - m spacy download en_core_web_sm
         nlp = spacy.load("en_core_web_sm")
-        doc = nlp(self._cleaned_content.lower())
-        self._cleaned_content: list[str] = [sent.text for sent in doc.sents]
-        self.current_document = self._cleaned_content
+        doc = nlp(self.cleaned_content.lower())
+        self.cleaned_content: list[str] = [sent.text for sent in doc.sents]
+        self.current_document = self.cleaned_content
         return self
 
     @property
@@ -117,6 +119,10 @@ class WebScrapingPipeline:
     def cleaned_content(self):
         """Access cleaned content."""
         return self._cleaned_content
+
+    @cleaned_content.setter
+    def cleaned_content(self, value):
+        self._cleaned_content = value
 
     @property
     def embedding(self):
@@ -147,6 +153,13 @@ class WebScrapingPipeline:
     def index(self, value):
         self._index = value
 
+    @property
+    def text_library(self):
+        return self._text_library
+
+    @text_library.setter
+    def text_library(self, value):
+        self._text_library = value
 
 
     def save(self, folder: str, hashed: bool = False, extension: str  = ".txt"):
@@ -169,6 +182,11 @@ class WebScrapingPipeline:
             print("No content to save.")
 
         return self
+
+    def store_in_pd_library(self):
+        self.text_library = pd.concat([self.text_library, pd.DataFrame(self.cleaned_content)], axis=0, ignore_index=True)
+        return self
+
 
     def calc_embedding(self, model: Model):
         self.embedding = np.array([model.calc_embeddings(line) for line in self.cleaned_content])

@@ -7,5 +7,5 @@ class Model:
         self.embeddings = None
 
     def calc_embeddings(self, text: str):
-        embedding = self.model.encode(text)
+        embedding = self.model.encode(text, convert_to_numpy=True)
         return embedding
