@@ -9,19 +9,19 @@ from webdriver_manager.chrome import ChromeDriverManager
 import requests
 import os
 import spacy
-
+import faiss
 from pathlib import Path
 
 from search.model import Model
 
 
 class WebScrapingPipeline:
-    def __init__(self, url: str |  Path):
-        self.url = Path(url)
+    def __init__(self):
         self._raw_content = None
         self._cleaned_content = None
         self._embedding = None
         self._current_document = None
+        self._index = None
 
     def get_file_name(self):
         return self.url.name
@@ -35,11 +35,11 @@ class WebScrapingPipeline:
         path = path.with_suffix(extension)
         return path
 
-    def fetch(self):
+    def fetch(self, url: str | Path):
         """Fetch raw HTML content, falling back to Selenium if requests is unsuccessful."""
-
+        self.url = Path(url) #todo this not a good practice
         try:
-            response = requests.get(str(self.url), timeout=10)
+            response = requests.get(str(url), timeout=10)
             response.raise_for_status()
             self._raw_content = response.content
         except requests.exceptions.RequestException as e:
@@ -122,6 +122,10 @@ class WebScrapingPipeline:
     def embedding(self):
         return self._embedding
 
+    @embedding.setter
+    def embedding(self, value):
+        self._embedding = value
+
     @property
     def current_document(self):
         if isinstance(self._current_document, list):
@@ -134,6 +138,16 @@ class WebScrapingPipeline:
     @current_document.setter
     def current_document(self, value):
         self._current_document = value
+
+    @property
+    def index(self) -> None:
+        return self._index
+
+    @index.setter
+    def index(self, value):
+        self._index = value
+
+
 
     def save(self, folder: str, hashed: bool = False, extension: str  = ".txt"):
         """Save cleaned content to a file."""
@@ -157,7 +171,17 @@ class WebScrapingPipeline:
         return self
 
     def calc_embedding(self, model: Model):
-        self._embedding = np.array([model.calc_embeddings(line) for line in self.cleaned_content])
-        self.current_document = self._embedding
+        self.embedding = np.array([model.calc_embeddings(line) for line in self.cleaned_content])
+        self.current_document = self.embedding
         return self
+
+    def add_embedding_to_vector(self):
+        if self.index is None and self.embedding is not None:
+            self.index = faiss.IndexFlatL2(self.embedding.shape[1])
+        else:
+            RuntimeError("Embedding must be calculated")
+
+        self.index.add(self.embedding)
+        return self
+
 
