@@ -13,7 +13,18 @@ import spacy
 import faiss
 from pathlib import Path
 
+import textwrap
+
 from search.model import Model
+
+def stop_chain_decorator(func):
+    def wrapper(self, *args, **kwargs):
+        if self._current_document is None:
+            print(f"Skipping {func.__name__} because the chain is stopped.")
+            return self  # Skip the function if the chain is stopped
+        return func(self, *args, **kwargs)
+    return wrapper
+
 
 
 class WebScrapingPipeline:
@@ -38,6 +49,7 @@ class WebScrapingPipeline:
         return path
 
     def fetch(self, url: str | Path):
+        print(f"Fetching {url}")
         """Fetch raw HTML content, falling back to Selenium if requests is unsuccessful."""
         self.url = Path(url) #todo this not a good practice
         try:
@@ -88,6 +100,7 @@ class WebScrapingPipeline:
             self._raw_content = None
         return self
 
+    @stop_chain_decorator
     def format(self):
         """Extract meaningful content from raw HTML."""
         if self._raw_content is None:
@@ -100,8 +113,10 @@ class WebScrapingPipeline:
             )
             self.cleaned_content = content.get_text(strip=True) if content else None
             self.current_document = self.cleaned_content
+
         return self
 
+    @stop_chain_decorator
     def preprocess_text(self):
         # python - m spacy download en_core_web_sm
         nlp = spacy.load("en_core_web_sm")
@@ -134,6 +149,8 @@ class WebScrapingPipeline:
 
     @property
     def current_document(self):
+        if self._current_document is None:
+            return None
         if isinstance(self._current_document, list):
             return self._current_document
         elif isinstance(self._current_document, np.ndarray):
@@ -161,7 +178,7 @@ class WebScrapingPipeline:
     def text_library(self, value):
         self._text_library = value
 
-
+    @stop_chain_decorator
     def save(self, folder: str, hashed: bool = False, extension: str  = ".txt"):
         """Save cleaned content to a file."""
         if self.current_document is not None:
@@ -183,15 +200,18 @@ class WebScrapingPipeline:
 
         return self
 
+    @stop_chain_decorator
     def store_in_pd_library(self):
         self.text_library = pd.concat([self.text_library, pd.DataFrame(self.cleaned_content)], axis=0, ignore_index=True)
         return self
 
+    @stop_chain_decorator
     def calc_embedding(self, model: Model):
         self.embedding = np.array([model(line) for line in self.cleaned_content])
         self.current_document = self.embedding
         return self
 
+    @stop_chain_decorator
     def add_embedding_to_vector(self):
         if self.index is None and self.embedding is not None:
             self.index = faiss.IndexFlatL2(self.embedding.shape[1])
@@ -200,5 +220,24 @@ class WebScrapingPipeline:
 
         self.index.add(self.embedding)
         return self
+
+    @staticmethod
+    def __print_with_width(text, width=80):
+        # Wrap the text to fit within the specified width
+        wrapped_text = textwrap.fill(text, width=width)
+        print(wrapped_text)
+
+    def __call__(self, text, model_name):
+        model = Model(model_name=model_name)
+        query_embedding = model(text).reshape(1, -1)
+        distances, indices = self.index.search(query_embedding, 1)
+        for idx in indices:
+            result = self.text_library.iloc[idx][0].values[0]
+            self.__print_with_width(result)
+
+    @stop_chain_decorator
+    def info(self) -> None:
+        print(f"library size: {len(self.text_library)}")
+
 
 

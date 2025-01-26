@@ -19,10 +19,9 @@ if __name__ == "__main__":
          save(folder="embedded").
          add_embedding_to_vector())
 
-    model = Model(model_name=model_name)
-    query_embedding = model(text).reshape(1, -1)
+    pipeline.info()
+    pipeline(text, model_name)
 
-    distances, indices = pipeline.index.search(query_embedding, 1)
-    for idx in indices:
-        print(pipeline.text_library.iloc[idx])
+
+
 
