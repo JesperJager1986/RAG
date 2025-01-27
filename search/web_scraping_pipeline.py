@@ -64,7 +64,14 @@ class WebScrapingPipeline:
 
     @property
     def current_document(self):
-        return self._current_document
+        if self._current_document is None:
+            return None
+        if isinstance(self._current_document, list):
+            return self._current_document
+        elif isinstance(self._current_document, np.ndarray):
+            return self._current_document
+        else:
+            return [self._current_document]
 
     @current_document.setter
     def current_document(self, value):
@@ -177,16 +184,7 @@ class WebScrapingPipeline:
         return self
 
 
-    @property
-    def current_document(self):
-        if self._current_document is None:
-            return None
-        if isinstance(self._current_document, list):
-            return self._current_document
-        elif isinstance(self._current_document, np.ndarray):
-            return self._current_document
-        else:
-            return [self._current_document]
+
 
 
 
