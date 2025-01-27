@@ -1,25 +1,33 @@
 from search.model import Model
 from search.web_scraping_pipeline import WebScrapingPipeline
-from search.webpages import get_urls
+from search.webpages import get_urls, get_files_folder
 
 if __name__ == "__main__":
 
     model_name = 'all-MiniLM-L6-v2'
     text = "how cars are there in each image"
+    load_from_cvs = True
 
     pipeline = WebScrapingPipeline()
-    for url in get_urls():
-        (pipeline.
+    if load_from_cvs:
+        for file in get_files_folder(folder_path="combined"):
+            (pipeline.
+            load(file).
+             add_embedding_to_vector())
+    else:
+        for url in get_urls():
+             (pipeline.
          fetch(url).
          format().
-         #save(folder="format").
+         save(url, folder="format").
          preprocess_text().
-         #save(folder="preprocessed").
-         load().
+         save(url, folder="preprocessed").
          store_in_pd_library().
          calc_embedding(model=Model(model_name=model_name)).
-         save(folder="embedded").
-         add_embedding_to_vector())
+         save(url, folder="embedded").
+         add_embedding_to_vector().
+         save(url, folder="combined", info="all"))
+
 
     pipeline.info()
     pipeline(text, model_name)

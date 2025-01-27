@@ -1,5 +1,6 @@
 import hashlib
 
+import ast
 import numpy as np
 import pandas as pd
 from bs4 import BeautifulSoup
@@ -93,14 +94,15 @@ class WebScrapingPipeline:
     def text_library(self, value):
         self._text_library = value
 
-    def get_file_name(self):
-        return self.url.name
+    @staticmethod
+    def create_file_name_from_path(path: str | Path, folder , add_name_to_name: str = None, extension =".txt") -> Path:
+        if isinstance(path, str):
+            path = Path(path)
 
-    def create_file_name_from_path(self, folder , add_name_to_name: str = None, extension =".txt") -> Path:
         if add_name_to_name is not None:
-            new_stem = f"{self.url.stem}_{add_name_to_name}"
-            self.url = self.url.with_name(new_stem + self.url.suffix)
-        path = folder / self.url.stem
+            new_stem = f"{path.stem}_{add_name_to_name}"
+            path = path.with_name(new_stem + path.suffix)
+        path = folder / path.stem
 
         path = path.with_suffix(extension)
         return path
@@ -108,7 +110,7 @@ class WebScrapingPipeline:
     def fetch(self, url: str | Path):
         print(f"Fetching {url}")
         """Fetch raw HTML content, falling back to Selenium if requests is unsuccessful."""
-        self.url = Path(url) #todo this not a good practice
+        url = Path(url) #todo this not a good practice
         try:
             response = requests.get(str(url), timeout=10)
             response.raise_for_status()
@@ -117,7 +119,7 @@ class WebScrapingPipeline:
             print(f"Requests failed: {e}")
 
         if self.raw_content is None:
-            self._fetch_with_selenium()
+            self._fetch_with_selenium(url)
 
         if self.raw_content is None:
             raise RuntimeError("No data is loaded")
@@ -126,17 +128,18 @@ class WebScrapingPipeline:
 
         return self
 
-    def _fetch_with_requests(self):
+    def _fetch_with_requests(self, url: str | Path):
         """Try to fetch content using requests."""
         try:
-            response = requests.get(str(self.url), timeout=10)
+            response = requests.get(str(url), timeout=10)
             response.raise_for_status()
             self.raw_content = response.content
         except requests.exceptions.RequestException as e:
             print(f"Requests failed: {e}")
         return self
 
-    def _fetch_with_selenium(self):
+    def _fetch_with_selenium(self, url: str | Path):
+        """Try to fetch content using selenium."""
         """Fetch content using Selenium for JavaScript-rendered pages."""
         print("Falling back to Selenium for JavaScript rendering...")
         options = Options()
@@ -149,7 +152,7 @@ class WebScrapingPipeline:
             with webdriver.Chrome(
                 service=Service(ChromeDriverManager().install()), options=options
             ) as driver:
-                driver.get(str(self.url))
+                driver.get(str(url))
                 self.raw_content = driver.page_source
                 self.current_document = self.raw_content
         except Exception as e:
@@ -183,12 +186,12 @@ class WebScrapingPipeline:
         return self
 
     @stop_chain_decorator
-    def save(self, folder: str, hashed: bool = False, extension: str  = ".txt"):
+    def save(self, path, folder: str, hashed: bool = False, extension: str  = ".cvs", info: bool = False):
         """Save cleaned content to a file."""
         if self.current_document is not None:
             os.makedirs(folder, exist_ok=True)
             folder = Path(folder)
-            file_path2 = self.create_file_name_from_path(folder = folder, extension=extension)
+            file_path2 = self.create_file_name_from_path(path, folder = folder, extension=extension)
             if isinstance(self.current_document, np.ndarray):
                 np.savetxt(file_path2, self.current_document, fmt="%.8f")
             else:
@@ -202,6 +205,15 @@ class WebScrapingPipeline:
         else:
             print("No content to save.")
 
+        if self.current_document is not None and info:
+            os.makedirs(folder, exist_ok=True)
+            folder = Path(folder)
+            file_path2 = self.create_file_name_from_path(path, folder = folder, extension=extension)
+            df = pd.DataFrame({
+                "text": self.cleaned_content,
+                "embedding": [embedding.tolist() for embedding in self.embedding]  # Convert numpy arrays to lists
+            })
+            df.to_csv(file_path2, index=False)
         return self
 
     @stop_chain_decorator
@@ -222,7 +234,7 @@ class WebScrapingPipeline:
         else:
             RuntimeError("Embedding must be calculated")
 
-        self.index.add(self.embedding)
+        self.index.add(self.embedding)  # noqa
         return self
 
     @staticmethod
@@ -234,7 +246,7 @@ class WebScrapingPipeline:
     def __call__(self, text, model_name):
         model = Model(model_name=model_name)
         query_embedding = model(text).reshape(1, -1)
-        distances, indices = self.index.search(query_embedding, 1)
+        distances, indices = self.index.search(query_embedding, 1)  # noqa   (handler error)
         for idx in indices:
             result = self.text_library.iloc[idx][0].values[0]
             self.__print_with_width(result)
@@ -242,5 +254,14 @@ class WebScrapingPipeline:
     def info(self) -> None:
         print(f"library size: {len(self.text_library)}")
 
+    def load(self, file_path: str | Path):
+
+        df = pd.read_csv(file_path)
+
+        self.current_document = df.values.tolist()
+        self.embedding = np.array([ast.literal_eval(item) for item in df["embedding"].values])
+        self.text_library = pd.concat([self.text_library, df["text"]], axis=0, ignore_index=True)
+
+        return self
 
 
