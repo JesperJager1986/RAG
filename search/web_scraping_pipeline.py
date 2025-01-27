@@ -33,7 +33,7 @@ class WebScrapingPipeline:
         self._cleaned_content = None
         self._embedding = None
         self._current_document = None
-        self._index = None
+        self._index: faiss.Index | None  = None
         self._text_library = pd.DataFrame([])
 
     @property
@@ -78,11 +78,11 @@ class WebScrapingPipeline:
         self._current_document = value
 
     @property
-    def index(self) -> None:
+    def index(self) -> faiss.Index:
         return self._index
 
     @index.setter
-    def index(self, value):
+    def index(self, value) -> None:
         self._index = value
 
     @property
@@ -92,7 +92,6 @@ class WebScrapingPipeline:
     @text_library.setter
     def text_library(self, value):
         self._text_library = value
-
 
     def get_file_name(self):
         return self.url.name
@@ -182,11 +181,6 @@ class WebScrapingPipeline:
         self.cleaned_content: list[str] = [sent.text for sent in doc.sents]
         self.current_document = self.cleaned_content
         return self
-
-
-
-
-
 
     @stop_chain_decorator
     def save(self, folder: str, hashed: bool = False, extension: str  = ".txt"):
