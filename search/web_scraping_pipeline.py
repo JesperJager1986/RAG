@@ -36,99 +36,14 @@ class WebScrapingPipeline:
         self._index = None
         self._text_library = pd.DataFrame([])
 
-    def get_file_name(self):
-        return self.url.name
-
-    def create_file_name_from_path(self, folder , add_name_to_name: str = None, extension =".txt") -> Path:
-        if add_name_to_name is not None:
-            new_stem = f"{self.url.stem}_{add_name_to_name}"
-            self.url = self.url.with_name(new_stem + self.url.suffix)
-        path = folder / self.url.stem
-
-        path = path.with_suffix(extension)
-        return path
-
-    def fetch(self, url: str | Path):
-        print(f"Fetching {url}")
-        """Fetch raw HTML content, falling back to Selenium if requests is unsuccessful."""
-        self.url = Path(url) #todo this not a good practice
-        try:
-            response = requests.get(str(url), timeout=10)
-            response.raise_for_status()
-            self._raw_content = response.content
-        except requests.exceptions.RequestException as e:
-            print(f"Requests failed: {e}")
-
-        if self._raw_content is None:
-            self._fetch_with_selenium()
-
-        if self._raw_content is None:
-            raise RuntimeError("No data is loaded")
-
-        self.current_document = self._raw_content
-
-        return self
-
-    def _fetch_with_requests(self):
-        """Try to fetch content using requests."""
-        try:
-            response = requests.get(str(self.url), timeout=10)
-            response.raise_for_status()
-            self._raw_content = response.content
-        except requests.exceptions.RequestException as e:
-            print(f"Requests failed: {e}")
-        return self
-
-    def _fetch_with_selenium(self):
-        """Fetch content using Selenium for JavaScript-rendered pages."""
-        print("Falling back to Selenium for JavaScript rendering...")
-        options = Options()
-        options.add_argument("--headless")
-        options.add_argument("--disable-gpu")
-        options.add_argument("--no-sandbox")
-        options.add_argument("--disable-dev-shm-usage")
-
-        try:
-            with webdriver.Chrome(
-                service=Service(ChromeDriverManager().install()), options=options
-            ) as driver:
-                driver.get(str(self.url))
-                self._raw_content = driver.page_source
-                self.current_document = self._raw_content
-        except Exception as e:
-            print(f"Selenium failed: {e}")
-            self._raw_content = None
-        return self
-
-    @stop_chain_decorator
-    def format(self):
-        """Extract meaningful content from raw HTML."""
-        if self._raw_content is None:
-            print("No content to clean.")
-        else:
-            soup = BeautifulSoup(self._raw_content, 'html.parser')
-            content = (
-                soup.find('div', {'class': 'mw-parser-output'}) or
-                soup.find('div', {'id': 'content'})
-            )
-            self.cleaned_content = content.get_text(strip=True) if content else None
-            self.current_document = self.cleaned_content
-
-        return self
-
-    @stop_chain_decorator
-    def preprocess_text(self):
-        # python - m spacy download en_core_web_sm
-        nlp = spacy.load("en_core_web_sm")
-        doc = nlp(self.cleaned_content.lower())
-        self.cleaned_content: list[str] = [sent.text for sent in doc.sents]
-        self.current_document = self.cleaned_content
-        return self
-
     @property
     def raw_content(self):
         """Access raw HTML content."""
         return self._raw_content
+
+    @raw_content.setter
+    def raw_content(self, raw_content):
+        self._raw_content = raw_content
 
     @property
     def cleaned_content(self):
@@ -149,14 +64,7 @@ class WebScrapingPipeline:
 
     @property
     def current_document(self):
-        if self._current_document is None:
-            return None
-        if isinstance(self._current_document, list):
-            return self._current_document
-        elif isinstance(self._current_document, np.ndarray):
-            return self._current_document
-        else:
-            return [self._current_document]
+        return self._current_document
 
     @current_document.setter
     def current_document(self, value):
@@ -177,6 +85,110 @@ class WebScrapingPipeline:
     @text_library.setter
     def text_library(self, value):
         self._text_library = value
+
+
+    def get_file_name(self):
+        return self.url.name
+
+    def create_file_name_from_path(self, folder , add_name_to_name: str = None, extension =".txt") -> Path:
+        if add_name_to_name is not None:
+            new_stem = f"{self.url.stem}_{add_name_to_name}"
+            self.url = self.url.with_name(new_stem + self.url.suffix)
+        path = folder / self.url.stem
+
+        path = path.with_suffix(extension)
+        return path
+
+    def fetch(self, url: str | Path):
+        print(f"Fetching {url}")
+        """Fetch raw HTML content, falling back to Selenium if requests is unsuccessful."""
+        self.url = Path(url) #todo this not a good practice
+        try:
+            response = requests.get(str(url), timeout=10)
+            response.raise_for_status()
+            self.raw_content = response.content
+        except requests.exceptions.RequestException as e:
+            print(f"Requests failed: {e}")
+
+        if self.raw_content is None:
+            self._fetch_with_selenium()
+
+        if self.raw_content is None:
+            raise RuntimeError("No data is loaded")
+
+        self.current_document = self.raw_content
+
+        return self
+
+    def _fetch_with_requests(self):
+        """Try to fetch content using requests."""
+        try:
+            response = requests.get(str(self.url), timeout=10)
+            response.raise_for_status()
+            self.raw_content = response.content
+        except requests.exceptions.RequestException as e:
+            print(f"Requests failed: {e}")
+        return self
+
+    def _fetch_with_selenium(self):
+        """Fetch content using Selenium for JavaScript-rendered pages."""
+        print("Falling back to Selenium for JavaScript rendering...")
+        options = Options()
+        options.add_argument("--headless")
+        options.add_argument("--disable-gpu")
+        options.add_argument("--no-sandbox")
+        options.add_argument("--disable-dev-shm-usage")
+
+        try:
+            with webdriver.Chrome(
+                service=Service(ChromeDriverManager().install()), options=options
+            ) as driver:
+                driver.get(str(self.url))
+                self.raw_content = driver.page_source
+                self.current_document = self.raw_content
+        except Exception as e:
+            print(f"Selenium failed: {e}")
+            self.raw_content = None
+        return self
+
+    @stop_chain_decorator
+    def format(self):
+        """Extract meaningful content from raw HTML."""
+        if self.raw_content is None:
+            print("No content to clean.")
+        else:
+            soup = BeautifulSoup(self.raw_content, 'html.parser')
+            content = (
+                soup.find('div', {'class': 'mw-parser-output'}) or
+                soup.find('div', {'id': 'content'})
+            )
+            self.cleaned_content = content.get_text(strip=True) if content else None
+            self.current_document = self.cleaned_content
+
+        return self
+
+    @stop_chain_decorator
+    def preprocess_text(self):
+        # python - m spacy download en_core_web_sm
+        nlp = spacy.load("en_core_web_sm")
+        doc = nlp(self.cleaned_content.lower())
+        self.cleaned_content: list[str] = [sent.text for sent in doc.sents]
+        self.current_document = self.cleaned_content
+        return self
+
+
+    @property
+    def current_document(self):
+        if self._current_document is None:
+            return None
+        if isinstance(self._current_document, list):
+            return self._current_document
+        elif isinstance(self._current_document, np.ndarray):
+            return self._current_document
+        else:
+            return [self._current_document]
+
+
 
     @stop_chain_decorator
     def save(self, folder: str, hashed: bool = False, extension: str  = ".txt"):
@@ -235,7 +247,6 @@ class WebScrapingPipeline:
             result = self.text_library.iloc[idx][0].values[0]
             self.__print_with_width(result)
 
-    @stop_chain_decorator
     def info(self) -> None:
         print(f"library size: {len(self.text_library)}")
 

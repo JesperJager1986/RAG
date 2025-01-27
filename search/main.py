@@ -9,11 +9,13 @@ if __name__ == "__main__":
 
     pipeline = WebScrapingPipeline()
     for url in get_urls():
-        (pipeline.fetch(url).
+        (pipeline.
+         fetch(url).
          format().
-         save(folder="format").
+         #save(folder="format").
          preprocess_text().
-         save(folder="preprocessed").
+         #save(folder="preprocessed").
+         load().
          store_in_pd_library().
          calc_embedding(model=Model(model_name=model_name)).
          save(folder="embedded").
