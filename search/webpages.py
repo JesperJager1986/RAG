@@ -4,8 +4,14 @@ def get_files_folder(folder_path) -> list[str]:
     return [os.path.join(folder_path, f) for f in os.listdir(folder_path) if f.endswith('.cvs')]
 
 
+def get_urls2():
+    return ["https://www.cvlibs.net/datasets/kitti"]
+
 def get_urls() -> list[str]:
     return [
+    "https://eu.davidaustinroses.com/blogs/rose-care/how-to-prune-english-shrub-and-climbing-roses-to-maximise-flowering", #roses
+    "https://eu.davidaustinroses.com/blogs/news/a-guide-to-pruning", #roses
+    
     "https://github.com/VisDrone/VisDrone-Dataset",
     "https://paperswithcode.com/dataset/visdrone",
     "https://openaccess.thecvf.com/content_ECCVW_2018/papers/11133/Zhu_VisDrone-DET2018_The_Vision_Meets_Drone_Object_Detection_in_Image_Challenge_ECCVW_2018_paper.pdf",
@@ -29,5 +35,4 @@ def get_urls() -> list[str]:
     "https://roboflow.com",
     "https://www.kaggle.com",
     "https://paperswithcode.com",
-    "https://github.com"
-]
+    "https://github.com"]

@@ -107,12 +107,11 @@ class WebScrapingPipeline:
         path = path.with_suffix(extension)
         return path
 
-    def fetch(self, url: str | Path):
+    def fetch(self, url: str):
         print(f"Fetching {url}")
         """Fetch raw HTML content, falling back to Selenium if requests is unsuccessful."""
-        url = Path(url) #todo this not a good practice
         try:
-            response = requests.get(str(url), timeout=10)
+            response = requests.get(url, timeout=10)
             response.raise_for_status()
             self.raw_content = response.content
         except requests.exceptions.RequestException as e:
