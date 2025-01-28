@@ -5,7 +5,10 @@ def get_files_folder(folder_path) -> list[str]:
 
 
 def get_urls2():
-    return ["https://www.cvlibs.net/datasets/kitti"]
+    return [
+        "https://eu.davidaustinroses.com/blogs/rose-care/how-to-prune-english-shrub-and-climbing-roses-to-maximise-flowering",
+        "https://eu.davidaustinroses.com/blogs/news/a-guide-to-pruning",  # roses
+        "https://www.cvlibs.net/datasets/kitti"]
 
 def get_urls() -> list[str]:
     return [

@@ -2,12 +2,14 @@ from search.model import Model
 from search.web_scraping_pipeline import WebScrapingPipeline
 from search.webpages import get_urls, get_files_folder
 from typing import Literal
+
+
 if __name__ == "__main__":
 
     model_name = 'all-MiniLM-L6-v2'
-    #text = "how cars are there in each image"
-    text = "why do we prune roses"
-    load_from_cvs = False
+    text = "how many cars are there in each image"
+    #text = "why do we prune roses"
+    load_from_cvs = True
     Topic: Literal["drones", "roses"] = "roses"
 
 

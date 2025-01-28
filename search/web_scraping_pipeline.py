@@ -176,9 +176,12 @@ class WebScrapingPipeline:
                 soup.find('div', {'class': 'mw-parser-output'}) or
                 soup.find('div', {'id': 'content'})
             )
-            self.cleaned_content = content.get_text(strip=True) if content else None
+            all_divs = soup.find_all('div')
+            hest = {div.get_text(separator=" ", strip=True) for div in all_divs if div.get_text(strip=True)}
+            result = ". ".join(hest)
+            self.cleaned_content = result
             self.current_document = self.cleaned_content
-
+            #self.cleaned_content = content.get_text(strip=True) if content else None
         return self
 
     @stop_chain_decorator
