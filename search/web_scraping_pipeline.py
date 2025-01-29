@@ -31,10 +31,11 @@ class WebScrapingPipeline:
     def __init__(self):
         self._raw_content: bytes | None = None
         self._cleaned_content: str | None  = None
-        self._embedding: list[float] | None = None
+        self._embedding: np.ndarray | None = None
         self._current_document: list[str] | None = None
         self._index: faiss.Index | None  = None
         self._text_library: pd.DataFrame = pd.DataFrame([])
+        self.df = pd.DataFrame([])
 
     @property
     def raw_content(self) -> bytes | None:
@@ -46,7 +47,7 @@ class WebScrapingPipeline:
         self._raw_content = raw_content
 
     @property
-    def cleaned_content(self):
+    def cleaned_content(self) -> str | None:
         """Access cleaned content."""
         return self._cleaned_content
 
@@ -187,6 +188,10 @@ class WebScrapingPipeline:
         """
         return [" ".join(lst[i:i + window_size]) for i in range(0, len(lst) - window_size + 1, step)]
 
+    #def clean_text(self, text: str) -> str:
+
+
+
     @stop_chain_decorator
     def preprocess_text(self, chunk: int):
         nlp = spacy.load("en_core_web_sm")
@@ -205,35 +210,27 @@ class WebScrapingPipeline:
         """Save cleaned content to a file."""
         os.makedirs(folder, exist_ok=True)
         folder = Path(folder)
-        file_path2 = self.create_file_name_from_path(path, folder = folder, extension=extension)
+        file_path = self.create_file_name_from_path(path, folder = folder, extension=extension)
 
-        if isinstance(self.current_document, np.ndarray):
-            np.savetxt(file_path2, self.current_document, fmt="%.8f")
+        document = self.current_document
+
+        if hashed:
+            document = list(map(lambda x: hashlib.sha256(x.encode('utf-8')).hexdigest(), document))
+
+        if isinstance(document, np.ndarray):
+            np.savetxt(file_path, document, fmt="%.8f")
             print(f"Content saved to {folder}")
         else:
-            with open(file_path2, 'w', encoding='utf-8') as file:
-                for line in self.current_document:
-                    if hashed:
-                        line = hashlib.sha256(line.encode('utf-8')).hexdigest()
-                    file.write(line + "\n")
-
+            with open(file_path, 'w', encoding='utf-8') as file:
+                file.writelines(f"{line}\n" for line in document)
             print(f"Content saved to {folder}")
 
-
-        if self.current_document is not None and info:
-            os.makedirs(folder, exist_ok=True)
-            folder = Path(folder)
-            file_path2 = self.create_file_name_from_path(path, folder = folder, extension=extension)
+        if info:
             df = pd.DataFrame({
-                "text": self.cleaned_content,
+                "text": document,
                 "embedding": [embedding.tolist() for embedding in self.embedding]  # Convert numpy arrays to lists
             })
-            df.to_csv(file_path2, index=False)
-        return self
-
-    @stop_chain_decorator
-    def store_in_pd_library(self):
-        self.text_library = pd.concat([self.text_library, pd.DataFrame(self.cleaned_content)], axis=0, ignore_index=True)
+            df.to_csv(file_path, index=False)
         return self
 
     @stop_chain_decorator
@@ -267,7 +264,7 @@ class WebScrapingPipeline:
             self.__print_with_width(result)
 
     def info(self) -> None:
-        print(f"library size: {len(self.text_library)}")
+        print(f"library size: {len(self.df)}")
 
     def load(self, file_path: str | Path):
 
@@ -279,6 +276,23 @@ class WebScrapingPipeline:
 
         return self
 
+    def store_to_df(self, title, hash_data: bool = False) :
 
+        document = self.current_document
 
+        if hash_data:
+            document = list(map(lambda x: hashlib.sha256(x.encode('utf-8')).hexdigest(), document))
 
+        if isinstance(document, np.ndarray):
+            document = [embedding for embedding in document]
+
+        self.df[title] = document
+
+        return self
+
+    def save_df(self, url, folder, extension: str = ".csv"):
+        os.makedirs(folder, exist_ok=True)
+        folder = Path(folder)
+        file_path = self.create_file_name_from_path(url, folder = folder, extension=extension)
+
+        self.df.to_csv(file_path, index=False)

@@ -9,7 +9,7 @@ if __name__ == "__main__":
     model_name = 'all-MiniLM-L6-v2'
     #text = "how many cars are there in each image"
     text = "why do we prune roses"
-    load_from_cvs = True
+    load_from_cvs = False
     Topic: Literal["drones", "roses"] = "roses"
     chunk: int = 3
 
@@ -18,21 +18,21 @@ if __name__ == "__main__":
     if load_from_cvs:
         for file in get_files_folder(folder_path="combined"):
             (pipeline.
-            load(file).
+             load(file).
              add_embedding_to_vector())
     else:
         for url in get_urls():
-             (pipeline.
+            (pipeline.
          fetch(url).
          format().
-         save(url, folder="format").
          preprocess_text(chunk=chunk).
-         save(url, folder="preprocessed").
-         store_in_pd_library().
+         store_to_df(title="text").
+         store_to_df(title="text_hashed", hash_data=True).
          calc_embedding(model=Model(model_name=model_name)).
-         save(url, folder="embedded").
-         add_embedding_to_vector().
-         save(url, folder="combined", info="all"))
+         store_to_df(title = "embedding").
+         save_df(url, folder="combined").
+         add_embedding_to_vector())
+
 
 
     pipeline.info()
