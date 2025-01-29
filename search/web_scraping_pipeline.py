@@ -172,16 +172,12 @@ class WebScrapingPipeline:
             print("No content to clean.")
         else:
             soup = BeautifulSoup(self.raw_content, 'html.parser')
-            content = (
-                soup.find('div', {'class': 'mw-parser-output'}) or
-                soup.find('div', {'id': 'content'})
-            )
+
             all_divs = soup.find_all('div')
             hest = {div.get_text(separator=" ", strip=True) for div in all_divs if div.get_text(strip=True)}
             result = ". ".join(hest)
-            self.cleaned_content = result
+            self.cleaned_content =  result if result else None
             self.current_document = self.cleaned_content
-            #self.cleaned_content = content.get_text(strip=True) if content else None
         return self
 
     def sliding_window(self, lst: list[str], window_size: int, step: int = 1) -> list[str]:
