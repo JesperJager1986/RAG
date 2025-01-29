@@ -191,12 +191,8 @@ class WebScrapingPipeline:
     def preprocess_text(self, chunk: int):
         nlp = spacy.load("en_core_web_sm")
 
-        doc = nlp(getattr(self.cleaned_content, 'lower', lambda: '')())  # Defaults to empty string if None
-
         doc = nlp(self.cleaned_content.lower()) if self.cleaned_content is not None else None
 
-        if self.cleaned_content is not None:
-            doc = nlp(self.cleaned_content.lower())
         self.cleaned_content: list[str] = [sent.text for sent in doc.sents]
 
         self.cleaned_content = self.sliding_window(self.cleaned_content, window_size=chunk)
@@ -207,22 +203,22 @@ class WebScrapingPipeline:
     @stop_chain_decorator
     def save(self, path, folder: str, hashed: bool = False, extension: str  = ".cvs", info: bool = False):
         """Save cleaned content to a file."""
-        if self.current_document is not None:
-            os.makedirs(folder, exist_ok=True)
-            folder = Path(folder)
-            file_path2 = self.create_file_name_from_path(path, folder = folder, extension=extension)
-            if isinstance(self.current_document, np.ndarray):
-                np.savetxt(file_path2, self.current_document, fmt="%.8f")
-            else:
-                with open(file_path2, 'w', encoding='utf-8') as file:
-                    for line in self.current_document:
-                        if hashed:
-                            line = hashlib.sha256(line.encode('utf-8')).hexdigest()
-                        file.write(line + "\n")
+        os.makedirs(folder, exist_ok=True)
+        folder = Path(folder)
+        file_path2 = self.create_file_name_from_path(path, folder = folder, extension=extension)
 
+        if isinstance(self.current_document, np.ndarray):
+            np.savetxt(file_path2, self.current_document, fmt="%.8f")
             print(f"Content saved to {folder}")
         else:
-            print("No content to save.")
+            with open(file_path2, 'w', encoding='utf-8') as file:
+                for line in self.current_document:
+                    if hashed:
+                        line = hashlib.sha256(line.encode('utf-8')).hexdigest()
+                    file.write(line + "\n")
+
+            print(f"Content saved to {folder}")
+
 
         if self.current_document is not None and info:
             os.makedirs(folder, exist_ok=True)

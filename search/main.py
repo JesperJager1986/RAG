@@ -9,7 +9,7 @@ if __name__ == "__main__":
     model_name = 'all-MiniLM-L6-v2'
     #text = "how many cars are there in each image"
     text = "why do we prune roses"
-    load_from_cvs = False
+    load_from_cvs = True
     Topic: Literal["drones", "roses"] = "roses"
     chunk: int = 3
 
