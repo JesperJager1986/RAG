@@ -20,30 +20,29 @@ from search.model import Model
 
 def stop_chain_decorator(func):
     def wrapper(self, *args, **kwargs):
-        if self._current_document is None:
+        if self.current_document is None :
             print(f"Skipping {func.__name__} because the chain is stopped.")
             return self  # Skip the function if the chain is stopped
         return func(self, *args, **kwargs)
     return wrapper
 
 
-
 class WebScrapingPipeline:
     def __init__(self):
-        self._raw_content = None
-        self._cleaned_content = None
-        self._embedding = None
-        self._current_document = None
+        self._raw_content: bytes | None = None
+        self._cleaned_content: str | None  = None
+        self._embedding: list[float] | None = None
+        self._current_document: list[str] | None = None
         self._index: faiss.Index | None  = None
-        self._text_library = pd.DataFrame([])
+        self._text_library: pd.DataFrame = pd.DataFrame([])
 
     @property
-    def raw_content(self):
+    def raw_content(self) -> bytes | None:
         """Access raw HTML content."""
         return self._raw_content
 
     @raw_content.setter
-    def raw_content(self, raw_content):
+    def raw_content(self, raw_content: bytes | None) -> None:
         self._raw_content = raw_content
 
     @property
@@ -107,7 +106,7 @@ class WebScrapingPipeline:
         path = path.with_suffix(extension)
         return path
 
-    def fetch(self, url: str):
+    def fetch(self, url: str) -> "WebScrapingPipeline":
         print(f"Fetching {url}")
         """Fetch raw HTML content, falling back to Selenium if requests is unsuccessful."""
         try:
@@ -126,14 +125,11 @@ class WebScrapingPipeline:
         if self.raw_content is None:
             self._fetch_with_selenium(url)
 
-        if self.raw_content is None:
-            raise RuntimeError("No data is loaded")
-
         self.current_document = self.raw_content
 
         return self
 
-    def _fetch_with_requests(self, url: str | Path):
+    def _fetch_with_requests(self, url: str | Path) -> "WebScrapingPipeline":
         """Try to fetch content using requests."""
         try:
             response = requests.get(str(url), timeout=10)
@@ -166,21 +162,19 @@ class WebScrapingPipeline:
         return self
 
     @stop_chain_decorator
-    def format(self):
+    def format(self) -> "WebScrapingPipeline":
         """Extract meaningful content from raw HTML."""
-        if self.raw_content is None:
-            print("No content to clean.")
-        else:
-            soup = BeautifulSoup(self.raw_content, 'html.parser')
+        soup = BeautifulSoup(self.raw_content, 'html.parser')
 
-            all_divs = soup.find_all('div')
-            hest = {div.get_text(separator=" ", strip=True) for div in all_divs if div.get_text(strip=True)}
-            result = ". ".join(hest)
-            self.cleaned_content =  result if result else None
-            self.current_document = self.cleaned_content
+        all_divs = soup.find_all('div')
+        hest = {div.get_text(separator=" ", strip=True) for div in all_divs if div.get_text(strip=True)}
+        result = ". ".join(hest)
+        self.cleaned_content =  result if result else None
+        self.current_document = self.cleaned_content
         return self
 
-    def sliding_window(self, lst: list[str], window_size: int, step: int = 1) -> list[str]:
+    @staticmethod
+    def sliding_window(lst: list[str], window_size: int, step: int = 1) -> list[str]:
         """Creates a sliding window of chunks from the list of strings.
 
         Args:
@@ -195,9 +189,14 @@ class WebScrapingPipeline:
 
     @stop_chain_decorator
     def preprocess_text(self, chunk: int):
-        # python - m spacy download en_core_web_sm
         nlp = spacy.load("en_core_web_sm")
-        doc = nlp(self.cleaned_content.lower())
+
+        doc = nlp(getattr(self.cleaned_content, 'lower', lambda: '')())  # Defaults to empty string if None
+
+        doc = nlp(self.cleaned_content.lower()) if self.cleaned_content is not None else None
+
+        if self.cleaned_content is not None:
+            doc = nlp(self.cleaned_content.lower())
         self.cleaned_content: list[str] = [sent.text for sent in doc.sents]
 
         self.cleaned_content = self.sliding_window(self.cleaned_content, window_size=chunk)
