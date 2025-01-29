@@ -23,17 +23,16 @@ if __name__ == "__main__":
     else:
         for url in get_urls():
             (pipeline.
-         fetch(url).
-         format().
-         preprocess_text(chunk=chunk).
-         store_to_df(title="text").
-         store_to_df(title="text_hashed", hash_data=True).
-         calc_embedding(model=Model(model_name=model_name)).
-         store_to_df(title = "embedding").
-         save_df(url, folder="combined").
-         add_embedding_to_vector())
-
-
+             fetch(url).
+             extract().
+             remove_special_character().
+             preprocess_text(chunk=chunk).
+             store_to_df(title="text").
+             store_to_df(title="text_hashed", hash_data=True).
+             calc_embedding(model=Model(model_name=model_name)).
+             store_to_df(title = "embedding").
+             save_df(url, folder="combined").
+             add_embedding_to_vector())
 
     pipeline.info()
     pipeline(text, model_name)

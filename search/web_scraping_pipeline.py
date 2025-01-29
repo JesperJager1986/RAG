@@ -32,9 +32,8 @@ class WebScrapingPipeline:
         self._raw_content: bytes | None = None
         self._cleaned_content: str | None  = None
         self._embedding: np.ndarray | None = None
-        self._current_document: list[str] | None = None
+        self._current_document: str | list[str] | None = None
         self._index: faiss.Index | None  = None
-        self._text_library: pd.DataFrame = pd.DataFrame([])
         self.df = pd.DataFrame([])
 
     @property
@@ -86,13 +85,6 @@ class WebScrapingPipeline:
     def index(self, value) -> None:
         self._index = value
 
-    @property
-    def text_library(self):
-        return self._text_library
-
-    @text_library.setter
-    def text_library(self, value):
-        self._text_library = value
 
     @staticmethod
     def create_file_name_from_path(path: str | Path, folder , add_name_to_name: str = None, extension =".txt") -> Path:
@@ -163,7 +155,7 @@ class WebScrapingPipeline:
         return self
 
     @stop_chain_decorator
-    def format(self) -> "WebScrapingPipeline":
+    def extract(self) -> "WebScrapingPipeline":
         """Extract meaningful content from raw HTML."""
         soup = BeautifulSoup(self.raw_content, 'html.parser')
 
@@ -188,19 +180,20 @@ class WebScrapingPipeline:
         """
         return [" ".join(lst[i:i + window_size]) for i in range(0, len(lst) - window_size + 1, step)]
 
-    #def clean_text(self, text: str) -> str:
+    def remove_special_character(self):
+        nlp = spacy.load("en_core_web_sm")
 
+        doc = nlp(self.current_document[0].lower()) if self.current_document is not None else None
+
+        self.cleaned_content: list[str] = [sent.text for sent in doc.sents]
+        self.current_document = self.cleaned_content
+        return self
 
 
     @stop_chain_decorator
     def preprocess_text(self, chunk: int):
-        nlp = spacy.load("en_core_web_sm")
 
-        doc = nlp(self.cleaned_content.lower()) if self.cleaned_content is not None else None
-
-        self.cleaned_content: list[str] = [sent.text for sent in doc.sents]
-
-        self.cleaned_content = self.sliding_window(self.cleaned_content, window_size=chunk)
+        self.cleaned_content = self.sliding_window(self.current_document, window_size=chunk)
 
         self.current_document = self.cleaned_content
         return self
@@ -260,7 +253,7 @@ class WebScrapingPipeline:
         query_embedding = model(text).reshape(1, -1)
         distances, indices = self.index.search(query_embedding, 1)  # noqa   (handler error)
         for idx in indices:
-            result = self.text_library.iloc[idx][0].values[0]
+            result = str(self.df["text"].loc[idx])
             self.__print_with_width(result)
 
     def info(self) -> None:
@@ -272,7 +265,6 @@ class WebScrapingPipeline:
 
         self.current_document = df.values.tolist()
         self.embedding = np.array([ast.literal_eval(item) for item in df["embedding"].values])
-        self.text_library = pd.concat([self.text_library, df["text"]], axis=0, ignore_index=True)
 
         return self
 
@@ -286,7 +278,10 @@ class WebScrapingPipeline:
         if isinstance(document, np.ndarray):
             document = [embedding for embedding in document]
 
-        self.df[title] = document
+        if title in self.df.columns:
+            self.df[title] = pd.concat([self.df[title], pd.Series(document)], ignore_index=True)
+        else:
+            self.df[title] = document
 
         return self
 
@@ -296,3 +291,4 @@ class WebScrapingPipeline:
         file_path = self.create_file_name_from_path(url, folder = folder, extension=extension)
 
         self.df.to_csv(file_path, index=False)
+        return self
