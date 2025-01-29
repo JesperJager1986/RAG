@@ -4,13 +4,13 @@ def get_files_folder(folder_path) -> list[str]:
     return [os.path.join(folder_path, f) for f in os.listdir(folder_path) if f.endswith('.cvs')]
 
 
-def get_urls2():
+def get_urls():
     return [
         "https://eu.davidaustinroses.com/blogs/rose-care/how-to-prune-english-shrub-and-climbing-roses-to-maximise-flowering",
         "https://eu.davidaustinroses.com/blogs/news/a-guide-to-pruning",  # roses
         "https://www.cvlibs.net/datasets/kitti"]
 
-def get_urls() -> list[str]:
+def get_urls2() -> list[str]:
     return [
     "https://eu.davidaustinroses.com/blogs/rose-care/how-to-prune-english-shrub-and-climbing-roses-to-maximise-flowering", #roses
     "https://eu.davidaustinroses.com/blogs/news/a-guide-to-pruning", #roses

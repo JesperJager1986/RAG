@@ -7,10 +7,11 @@ from typing import Literal
 if __name__ == "__main__":
 
     model_name = 'all-MiniLM-L6-v2'
-    text = "how many cars are there in each image"
-    #text = "why do we prune roses"
-    load_from_cvs = True
+    #text = "how many cars are there in each image"
+    text = "why do we prune roses"
+    load_from_cvs = False
     Topic: Literal["drones", "roses"] = "roses"
+    chunk: int = 3
 
 
     pipeline = WebScrapingPipeline()
@@ -25,7 +26,7 @@ if __name__ == "__main__":
          fetch(url).
          format().
          save(url, folder="format").
-         preprocess_text().
+         preprocess_text(chunk=chunk).
          save(url, folder="preprocessed").
          store_in_pd_library().
          calc_embedding(model=Model(model_name=model_name)).

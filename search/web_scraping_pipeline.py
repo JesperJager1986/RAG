@@ -184,12 +184,28 @@ class WebScrapingPipeline:
             #self.cleaned_content = content.get_text(strip=True) if content else None
         return self
 
+    def sliding_window(self, lst: list[str], window_size: int, step: int = 1) -> list[str]:
+        """Creates a sliding window of chunks from the list of strings.
+
+        Args:
+            lst: List of strings.
+            window_size: Size of each window (chunk).
+            step: Step size for sliding.
+
+        Returns:
+            A list of lists containing the chunks.
+        """
+        return [" ".join(lst[i:i + window_size]) for i in range(0, len(lst) - window_size + 1, step)]
+
     @stop_chain_decorator
-    def preprocess_text(self):
+    def preprocess_text(self, chunk: int):
         # python - m spacy download en_core_web_sm
         nlp = spacy.load("en_core_web_sm")
         doc = nlp(self.cleaned_content.lower())
         self.cleaned_content: list[str] = [sent.text for sent in doc.sents]
+
+        self.cleaned_content = self.sliding_window(self.cleaned_content, window_size=chunk)
+
         self.current_document = self.cleaned_content
         return self
 
@@ -230,7 +246,7 @@ class WebScrapingPipeline:
         return self
 
     @stop_chain_decorator
-    def calc_embedding(self, model: Model):
+    def calc_embedding(self, model: Model, ):
         self.embedding = np.array([model(line) for line in self.cleaned_content])
         self.current_document = self.embedding
         return self
@@ -271,5 +287,7 @@ class WebScrapingPipeline:
         self.text_library = pd.concat([self.text_library, df["text"]], axis=0, ignore_index=True)
 
         return self
+
+
 
 
