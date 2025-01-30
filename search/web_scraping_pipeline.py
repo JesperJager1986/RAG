@@ -253,11 +253,12 @@ class WebScrapingPipeline:
         query_embedding = model(text).reshape(1, -1)
         distances, indices = self.index.search(query_embedding, 1)  # noqa   (handler error)
         for idx in indices:
-            result = str(self.df["text"].loc[idx])
+            result = str(self.df["text"].iloc[idx].item())
             self.__print_with_width(result)
 
     def info(self) -> None:
         print(f"library size: {len(self.df)}")
+        print(f"number nan values found: {self.df.isna().sum().sum()}")
 
     def load(self, file_path: str | Path):
 
@@ -278,8 +279,16 @@ class WebScrapingPipeline:
         if isinstance(document, np.ndarray):
             document = [embedding for embedding in document]
 
+        document = pd.Series(document)  # Ensure document is a Series
+
+        # Determine new DataFrame length (extend if necessary)
+        if title in self.df.columns and not self.df.isna().any().any():
+            new_length = len(document)
+            self.df = self.df.reindex(range(new_length + len(self.df)))  # Extend with NaN
+
+        # Add or update the column
         if title in self.df.columns:
-            self.df[title] = pd.concat([self.df[title], pd.Series(document)], ignore_index=True)
+            self.df.loc[self.df[title].isna(), title] = document.values
         else:
             self.df[title] = document
 

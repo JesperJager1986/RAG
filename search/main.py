@@ -7,9 +7,10 @@ from typing import Literal
 if __name__ == "__main__":
 
     model_name = 'all-MiniLM-L6-v2'
-    #text = "how many cars are there in each image"
-    text = "why do we prune roses"
-    load_from_cvs = False
+    # text = "how many cars are there in each image"
+    # text = "why do we prune roses"
+    text = "when should one prune a rose"
+    load_from_cvs = True
     Topic: Literal["drones", "roses"] = "roses"
     chunk: int = 3
 
@@ -32,7 +33,8 @@ if __name__ == "__main__":
              calc_embedding(model=Model(model_name=model_name)).
              store_to_df(title = "embedding").
              save_df(url, folder="combined").
-             add_embedding_to_vector())
+             add_embedding_to_vector().
+             info())
 
     pipeline.info()
     pipeline(text, model_name)
