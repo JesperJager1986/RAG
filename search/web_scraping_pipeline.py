@@ -276,8 +276,12 @@ class WebScrapingPipeline:
 
             # Apply transformation
             df["embedding"] =  df["embedding"].apply(convert_to_numpy_array)
-            self.embedding =
 
+            array = np.empty((0, len(df["embedding"][0])))
+            for emb in df["embedding"]:
+                array = np.vstack([array, emb])
+
+            self.embedding = array
         self.df = pd.concat([self.df, df], axis=0, ignore_index=True)
 
         return self
