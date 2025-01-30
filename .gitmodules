@@ -1,0 +1,3 @@
+[submodule "AI-helper"]
+	path = AI-helper
+	url = https://github.com/JesperJager1986/AI-utility
