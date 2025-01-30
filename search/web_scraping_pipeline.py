@@ -265,7 +265,20 @@ class WebScrapingPipeline:
         df = pd.read_csv(file_path)
 
         self.current_document = df.values.tolist()
-        self.embedding = np.array([ast.literal_eval(item) for item in df["embedding"].values])
+        if "embedding" in df.columns:
+
+            def convert_to_numpy_array(s):
+                import re
+                s = re.sub(r"\n", "", s)
+                text = re.sub(r"(?<=\d)(?=\s)", ",", s)  # Add comma after each number
+                text = re.sub(r"(?<=\s)-", " -", text)
+                return np.array(ast.literal_eval(text))  # Convert to numpy array
+
+            # Apply transformation
+            df["embedding"] =  df["embedding"].apply(convert_to_numpy_array)
+            self.embedding =
+
+        self.df = pd.concat([self.df, df], axis=0, ignore_index=True)
 
         return self
 
